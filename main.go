@@ -164,11 +164,11 @@ func main() {
 
 	room := &Room{}
 	if strArr[0] <= "0" {
-		fmt.Println("Error, ant colony has died! (Number of ants must be at least 1.)")
+		fmt.Errorf("Error, ant colony has died! (Number of ants must be at least 1.)")
 		os.Exit(0)
 	} else if NumberOfAnts, err := strconv.Atoi(strArr[0]); err != nil {
 		room.NumberOfAnts = NumberOfAnts
-		fmt.Println("Number of ants must be a positive integer.")
+		fmt.Errorf("Number of ants must be a positive integer.")
 		os.Exit(0)
 
 	}
@@ -211,21 +211,28 @@ func main() {
 			}
 		}
 	}
+
 	links := Chunk(slice, 2)
 	Graph := newGraph()
 	for i := 0; i < len(links); i++ {
-		Graph.addRoom(links[i][0], links[i][1], 1)
-	}
-	fmt.Println("Dijkstra")
-	for i := 0; i < len(links); i++ {
-		if room.StartRoom == links[i][0] {
-			test := (Graph.getPath(links[i][1], room.EndRoom))
-			fmt.Println(test)
-		}
-		if room.StartRoom == links[i][1] {
-			test2 := (Graph.getPath(links[i][0], room.EndRoom))
-			fmt.Println(test2)
-		}
+		if links[i][0] != links[i][1] {
+			Graph.addRoom(links[i][0], links[i][1], 1)
+		} else {
+			fmt.Errorf("Ants cannot process pheromones! (Room cannot link to itself e.g. 3-3)")
+			os.Exit(0)
 
+		}
+		fmt.Println("Dijkstra")
+		for i := 0; i < len(links); i++ {
+			if room.StartRoom == links[i][0] {
+				test := (Graph.getPath(links[i][1], room.EndRoom))
+				fmt.Println(test)
+			}
+			if room.StartRoom == links[i][1] {
+				test2 := (Graph.getPath(links[i][0], room.EndRoom))
+				fmt.Println(test2)
+			}
+
+		}
 	}
 }
