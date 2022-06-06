@@ -52,12 +52,17 @@ func (h *Heap) pop() Path {
 }
 
 type Room struct {
+	RoomName  string
+	Weight    int
+	StartRoom string
+	EndRoom   string
+	Links     [][]string
+	Dijkstra  [][]string
+}
+
+type Ant struct {
 	NumberOfAnts int
-	RoomName     string
-	Weight       int
-	StartRoom    string
-	EndRoom      string
-	Paths        []string
+	Next         *Room
 }
 
 type Graph struct {
@@ -112,6 +117,8 @@ func (g *Graph) getPath(start, end string) []string { // int, []string
 	return nil
 }
 
+// func (a *Ant) checkRoom()
+
 func RemoveIndex(s []string, index int) []string {
 	return append(s[:index], s[index+1:]...)
 }
@@ -132,22 +139,24 @@ func Chunk(slice []string, size int) [][]string {
 
 // Queue represents a queue that holds a slice
 type Queue struct {
-	items []string
+	ant []string
 }
 
 // Enqueue adds a value at the end
 func (q *Queue) Enqueue(i string) {
-	q.items = append(q.items, i)
+	q.ant = append(q.ant, i)
 }
 
 // Dequeue
 func (q *Queue) Dequeue() string {
-	toRemove := q.items[len(q.items)-1]
-	q.items = q.items[1:]
+	toRemove := q.ant[len(q.ant)-1]
+	q.ant = q.ant[1:]
 	return toRemove
 }
 
 func main() {
+	// start := time.Now()
+
 	var strArr []string
 	file, err := os.Open(os.Args[1])
 	if err != nil {
@@ -163,15 +172,17 @@ func main() {
 	}
 
 	room := &Room{}
-	if strArr[0] <= "0" {
-		fmt.Errorf("Error, ant colony has died! (Number of ants must be at least 1.)")
-		os.Exit(0)
-	} else if NumberOfAnts, err := strconv.Atoi(strArr[0]); err != nil {
-		room.NumberOfAnts = NumberOfAnts
-		fmt.Errorf("Number of ants must be a positive integer.")
-		os.Exit(0)
+	ant := &Ant{}
 
+	if strArr[0] <= "0" {
+		fmt.Println("Error, ant colony has died! (Number of ants must be at least 1.)")
+		os.Exit(0)
 	}
+	NumberOfAnts, err := strconv.Atoi(strArr[0])
+	if err == nil {
+		ant.NumberOfAnts = NumberOfAnts
+	}
+
 	RemoveIndex(strArr, 0)
 	strArr = strArr[:len(strArr)-1]
 	for i := 0; i < len(strArr); i++ {
@@ -195,44 +206,84 @@ func main() {
 	result = deleteComment.ReplaceAllString(result, "")
 	roomsWithCoordinates := strings.Fields(result)
 
-	rooms := (Chunk(roomsWithCoordinates, 3))
+	rooms := Chunk(roomsWithCoordinates, 3)
 
 	for i := 0; i < len(rooms); i++ {
 		room.StartRoom = rooms[len(rooms)-2][0]
 		room.EndRoom = rooms[len(rooms)-1][0]
 	}
 
-	var slice []string
+	var links []string
 	for index := range strArr {
 		if strings.Contains(strArr[index], "-") {
 			link := strings.Split(strArr[index], "-")
 			for _, eachLine := range link {
-				slice = append(slice, eachLine)
+				links = append(links, eachLine)
 			}
 		}
 	}
 
-	links := Chunk(slice, 2)
+	room.Links = Chunk(links, 2)
 	Graph := newGraph()
-	for i := 0; i < len(links); i++ {
-		if links[i][0] != links[i][1] {
-			Graph.addRoom(links[i][0], links[i][1], 1)
+	for i := 0; i < len(room.Links); i++ {
+		if room.Links[i][0] != room.Links[i][1] {
+			Graph.addRoom(room.Links[i][0], room.Links[i][1], 1)
 		} else {
-			fmt.Errorf("Ants cannot process pheromones! (Room cannot link to itself e.g. 3-3)")
+			fmt.Println("Ants cannot process pheromones! (Room cannot link to itself e.g. 3-3)")
 			os.Exit(0)
 
 		}
-		fmt.Println("Dijkstra")
-		for i := 0; i < len(links); i++ {
-			if room.StartRoom == links[i][0] {
-				test := (Graph.getPath(links[i][1], room.EndRoom))
-				fmt.Println(test)
-			}
-			if room.StartRoom == links[i][1] {
-				test2 := (Graph.getPath(links[i][0], room.EndRoom))
-				fmt.Println(test2)
-			}
+	}
 
+	fmt.Println("Dijkstra")
+
+	for i := 0; i < len(room.Links); i++ {
+		if room.StartRoom == room.Links[i][0] {
+			path := (Graph.getPath(room.Links[i][1], room.EndRoom))
+			room.Dijkstra = append(room.Dijkstra, path)
+		}
+		if room.StartRoom == room.Links[i][1] {
+			path := (Graph.getPath(room.Links[i][1], room.EndRoom))
+			room.Dijkstra = append(room.Dijkstra, path)
+		}
+
+	}
+
+	q := Queue{}
+
+	// shortest path len
+	min := len(room.Dijkstra[0])
+	for _, v := range room.Dijkstra {
+		if len(v) < min {
+			min = len(v)
 		}
 	}
+	// to prevent index out of range
+	var empty []string
+	room.Dijkstra = append(room.Dijkstra, empty)
+
+	for i := 1; i <= ant.NumberOfAnts; i++ {
+		a := strconv.Itoa(i)
+
+		for j := 0; j < len(room.Dijkstra)-1; j++ {
+			for k := 0; k < min; k++ {
+				if len(room.Dijkstra) == 2 || len(room.Dijkstra[j]) == min {
+					q.Enqueue("L" + a + "-" + (room.Dijkstra[j][k]))
+				}
+			}
+		}
+
+	}
+	for _, i := range q.ant {
+		fmt.Println(i + " ")
+	}
+
+	// // Code to measure
+	// duration := time.Since(start)
+
+	// // Formatted string, such as "2h3m0.5s" or "4.503μs"
+	// fmt.Println(duration.Seconds())
+
+	// // Nanoseconds as int64
+	// fmt.Println(duration.Nanoseconds())
 }
